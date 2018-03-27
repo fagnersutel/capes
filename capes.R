@@ -53,12 +53,12 @@ write.xlsx(qualis, "qualis.xlsx")
 
 require(xlsx) 
 egressos <- read.xlsx("lattes.xls", 1)
-names(egressos)
 egressos$DOI <- NULL
 egressos$VOLUME <- NULL
 egressos$PAG_INICIAL <- NULL
 egressos$PAG_FINAL <- NULL
 egressos$AUTORES <- NULL
+dim(egressos)
 head(egressos)
 head(scimago)
 head(qualis)
@@ -76,3 +76,49 @@ final <- tabeladois[!duplicated(tabeladois), ]
 dim(final)
 
 write.xlsx(final, "qualis_egressos.xlsx")
+
+
+#install.packages('sqldf')
+names(egressos) <- c("Paper", "Journal", "ISSN", "AUTOR")
+library(sqldf)
+teste1 <- sqldf("SELECT AUTOR,  ISSN, Estrato, Paper
+             FROM egressos
+             INNER  JOIN qualis USING(ISSN)")
+dim(teste1)
+View(df4)
+
+teste2 <- sqldf("SELECT DISTINCT *
+                FROM egressos 
+                LEFT JOIN qualis ON egressos.ISSN = qualis.ISSN")
+dim(teste2)
+
+
+
+authors <- data.frame(
+    ## I(*) : use character columns of names to get sensible sort order
+    surname = I(c("Tukey", "Venables", "Tierney", "Ripley", "McNeil")),
+    nationality = c("US", "Australia", "US", "UK", "Australia"),
+    deceased = c("yes", rep("no", 4)))
+authorN <- within(authors, { name <- surname; rm(surname) })
+books <- data.frame(
+    name = I(c("Tukey", "Venables", "Tierney",
+               "Ripley", "Ripley", "McNeil", "R Core")),
+    title = c("Exploratory Data Analysis",
+              "Modern Applied Statistics ...",
+              "LISP-STAT",
+              "Spatial Statistics", "Stochastic Simulation",
+              "Interactive Data Analysis",
+              "An Introduction to R"),
+    other.author = c(NA, "Ripley", NA, NA, NA, NA,
+                     "Venables & Smith"))
+
+(m0 <- merge(authorN, books))
+(m1 <- merge(authors, books, by.x = "surname", by.y = "name"))
+m2 <- merge(books, authors, by.x = "name", by.y = "surname")
+stopifnot(exprs = {
+    identical(m0, m2[, names(m0)])
+    as.character(m1[, 1]) == as.character(m2[, 1])
+    all.equal(m1[, -1], m2[, -1][ names(m1)[-1] ])
+    identical(dim(merge(m1, m2, by = NULL)),
+              c(nrow(m1)*nrow(m2), ncol(m1)+ncol(m2)))
+})
